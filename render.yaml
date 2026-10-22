@@ -1,0 +1,34 @@
+# Render Blueprint: Postgres + Node web service.
+# The live services were created through the Render API with the same settings;
+# this file documents them and lets you recreate the stack with "New → Blueprint".
+databases:
+  - name: supplychain-ai-db
+    databaseName: supplychain_ai
+    plan: free
+    region: singapore
+
+services:
+  - type: web
+    name: supplychain-ai-backend
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: supplychain-ai-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false # set in the Render dashboard
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: CORS_ORIGINS
+        sync: false # e.g. https://supplychain-ai-frontend.vercel.app
+      - key: DISPLAY_TZ
+        value: Asia/Bangkok
