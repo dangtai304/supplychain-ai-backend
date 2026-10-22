@@ -1,12 +1,4 @@
-# Render Blueprint: Postgres + Node web service.
-# The live services were created through the Render API with the same settings;
-# this file documents them and lets you recreate the stack with "New → Blueprint".
-databases:
-  - name: supplychain-ai-db
-    databaseName: supplychain_ai
-    plan: free
-    region: singapore
-
+# Render Blueprint for the API. The database is Supabase (see supabase/migrations), not Render.
 services:
   - type: web
     name: supplychain-ai-backend
@@ -20,15 +12,15 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: supplychain-ai-db
-          property: connectionString
+      - key: SUPABASE_URL
+        value: https://idmvewikcsvrelguukhq.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_RnG7LqDtC9sPJ65wA2cUug_0zBOvqlz
       - key: ANTHROPIC_API_KEY
         sync: false # set in the Render dashboard
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5-5
       - key: CORS_ORIGINS
-        sync: false # e.g. https://supplychain-ai-frontend.vercel.app
+        value: https://supplychain-ai-frontend.vercel.app,http://localhost:5173
       - key: DISPLAY_TZ
         value: Asia/Bangkok

@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
-import { addChat, clearActions, clearChat, dbHealthy, getActions, getChat, migrate, pool, setAction } from "./db.js";
+import { migrate } from "./db.js";
+import { addChat, clearActions, clearChat, getActions, getChat, setAction, storeHealthy, storeMode } from "./store.js";
 import { copilotReply, llmEnabled } from "./copilot.js";
 import { authEnabled, canActOn, requireAdmin, requireUser } from "./auth.js";
 import {
@@ -65,7 +66,7 @@ app.get(
   wrap(async (_req, res) => {
     res.json({
       ok: true,
-      database: pool ? ((await dbHealthy()) ? "connected" : "error") : "memory",
+      database: await storeHealthy(),
       copilot: llmEnabled() ? "claude" : "canned",
       auth: authEnabled ? "supabase" : "off",
     });
@@ -85,7 +86,7 @@ app.get("/api/me", (req, res) => {
 /** Everything the home dashboard needs in one call. */
 app.get(
   "/api/dashboard",
-  wrap(async (_req, res) => {
+  wrap(async (req, res) => {
     res.json({
       generatedAt: new Date().toISOString(),
       roles,
@@ -99,7 +100,7 @@ app.get(
       agents,
       navGroups,
       copilot: { quickActions, contextChips },
-      resolved: await getActions(),
+      resolved: await getActions(req),
     });
   }),
 );
@@ -115,7 +116,7 @@ app.post(
     if (!canActOn(req.user!.perms, category.id)) {
       return res.status(403).json({ error: `Your role can view ${category.label.toLowerCase()} but can't act on them.` });
     }
-    await setAction(orderId, action);
+    await setAction(req, orderId, action, category.id);
     console.log(`[audit] ${req.user!.email || req.user!.id} ${action} ${orderId}`);
     res.json({ orderId, action });
   }),
@@ -125,8 +126,8 @@ app.post(
 app.delete(
   "/api/exceptions/actions",
   requireAdmin,
-  wrap(async (_req, res) => {
-    await clearActions();
+  wrap(async (req, res) => {
+    await clearActions(req);
     res.status(204).end();
   }),
 );
@@ -136,7 +137,7 @@ app.get(
   wrap(async (req, res) => {
     const key = chatKey(req, req.query.session);
     if (!key) return res.status(400).json({ error: "A session id (8–64 letters, digits, - or _) is required." });
-    const msgs = await getChat(key);
+    const msgs = await getChat(req, key);
     res.json({ messages: msgs.length ? msgs : initialChat, copilot: llmEnabled() ? "claude" : "canned" });
   }),
 );
@@ -151,15 +152,15 @@ app.post(
     if (!key) return res.status(400).json({ error: "A session id is required." });
     if (!text) return res.status(400).json({ error: "Message text is empty." });
 
-    let previous = await getChat(key);
+    let previous = await getChat(req, key);
     if (previous.length === 0) {
       // Persist the seeded welcome thread so history stays consistent.
-      for (const m of initialChat) await addChat(key, m.from, m.blocks, "seed");
-      previous = await getChat(key);
+      for (const m of initialChat) await addChat(req, key, m.from, m.blocks, "seed");
+      previous = await getChat(req, key);
     }
-    const user = await addChat(key, "user", [{ kind: "text", text }]);
-    const { blocks, source } = await copilotReply({ prompt: text, previous, role: viewLabel, resolved: await getActions() });
-    const reply = await addChat(key, "agent", blocks, source);
+    const user = await addChat(req, key, "user", [{ kind: "text", text }]);
+    const { blocks, source } = await copilotReply({ prompt: text, previous, role: viewLabel, resolved: await getActions(req) });
+    const reply = await addChat(req, key, "agent", blocks, source);
     res.json({ user, reply, source });
   }),
 );
@@ -169,7 +170,7 @@ app.delete(
   wrap(async (req, res) => {
     const key = chatKey(req, req.query.session);
     if (!key) return res.status(400).json({ error: "A session id is required." });
-    await clearChat(key);
+    await clearChat(req, key);
     res.status(204).end();
   }),
 );
@@ -184,7 +185,7 @@ const port = Number(process.env.PORT ?? 8080);
 migrate()
   .then(() => {
     app.listen(port, () =>
-      console.log(`API listening on :${port} (db: ${pool ? "postgres" : "memory"}, copilot: ${llmEnabled() ? "claude" : "canned"}, auth: ${authEnabled ? "supabase" : "off"})`),
+      console.log(`API listening on :${port} (store: ${storeMode}, copilot: ${llmEnabled() ? "claude" : "canned"}, auth: ${authEnabled ? "supabase" : "off"})`),
     );
   })
   .catch((e) => {

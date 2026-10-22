@@ -1,9 +1,9 @@
 # SupplyChain AI – Backend
 
-Express + TypeScript API for the SupplyChain AI control tower. Serves dashboard data, persists exception approvals and copilot chat in Postgres, and answers copilot questions with the Claude API.
+Express + TypeScript API for the SupplyChain AI control tower. Serves dashboard data, stores exception decisions and copilot chat in Supabase, and answers copilot questions with the Claude API.
 
 **Live API:** https://supplychain-ai-backend-3884.onrender.com/api/health  
-Frontend: [supplychain-ai-frontend](https://github.com/dangtai304/supplychain-ai-frontend) at https://supplychain-ai-frontend.vercel.app. Hosted on Render (Singapore), auto-deploys on push to `main`.
+Frontend: [supplychain-ai-frontend](https://github.com/dangtai304/supplychain-ai-frontend) at https://supplychain-ai-frontend.vercel.app. API hosted on Render (Singapore), auto-deploys on push to `main`. Database and auth: Supabase project `supplychain-ai` (Singapore).
 
 ## Endpoints
 
@@ -50,6 +50,12 @@ Role changes apply when the user's session refreshes (within about an hour) or a
 
 With `SUPABASE_URL` unset the API runs open (local demo).
 
+## Database (Supabase)
+
+Tables `exception_actions` and `chat_messages` are defined in `supabase/migrations/`. The API queries them through Supabase's Data API **as the signed-in user** (their token + the publishable key), so row-level security enforces the same rules as the API: users only see their own chat, decisions are accepted only within the role's scope, and only admins can reset. The API holds no database password or secret key. `private.can_act()` in the migration mirrors `ACTION_SCOPE` in `src/auth.ts`; change both together.
+
+Without `SUPABASE_URL`, the API falls back to `DATABASE_URL` (any Postgres) or in-memory storage for local development.
+
 ## Copilot
 
 `src/copilot.ts` sends a JSON snapshot of the control tower as the system prompt and forces a `reply` tool call, so answers come back as structured blocks (text, bullets, risk-order cards, follow-up actions) the UI renders directly. With no `ANTHROPIC_API_KEY`, or if the call fails, it falls back to canned replies.
@@ -68,12 +74,12 @@ Without `DATABASE_URL` state lives in memory. Tables are created automatically o
 
 | Variable | Notes |
 | --- | --- |
-| `DATABASE_URL` | Postgres connection string (Render internal URL in production) |
+| `DATABASE_URL` | Optional, local dev only: plain Postgres when Supabase isn't configured |
 | `ANTHROPIC_API_KEY` | Enables Claude replies |
 | `ANTHROPIC_MODEL` | Defaults to `claude-sonnet-5-5` |
 | `CORS_ORIGINS` | Comma-separated allowed origins; Vercel preview URLs of the frontend project are always allowed |
 | `DISPLAY_TZ` | Time zone for chat timestamps |
 | `SUPABASE_URL` | Enables auth, e.g. `https://<ref>.supabase.co` |
-| `SUPABASE_PUBLISHABLE_KEY` | Publishable key, used only for the legacy-token fallback |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key (safe to expose); used for Data API calls on behalf of users |
 
 Data lives in `src/data/seed.ts` (same shapes as the frontend's `src/lib/types.ts`). Replace those exports with real sources when you connect ERP / WMS / TMS feeds.

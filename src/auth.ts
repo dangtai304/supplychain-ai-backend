@@ -52,6 +52,8 @@ export interface AuthUser {
   id: string;
   email: string;
   perms: Permissions;
+  /** The caller's access token, forwarded to Supabase so RLS applies to their queries. */
+  token: string;
 }
 
 declare module "express-serve-static-core" {
@@ -97,7 +99,7 @@ const isRole = (r: unknown): r is AppRole => typeof r === "string" && (ROLES as 
 /** Requires a valid Supabase session with an assigned role. No-op when auth isn't configured (local demo). */
 export async function requireUser(req: Request, res: Response, next: NextFunction) {
   if (!authEnabled) {
-    req.user = { id: "demo", email: "demo@local", perms: permissionsFor("admin") };
+    req.user = { id: "demo", email: "demo@local", perms: permissionsFor("admin"), token: "" };
     return next();
   }
   const header = req.headers.authorization ?? "";
@@ -110,7 +112,7 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
     if (!isRole(role)) {
       return res.status(403).json({ error: "Your account doesn't have a role yet. Ask your administrator to assign one.", code: "no_role" });
     }
-    req.user = { id: claims.sub, email: claims.email ?? "", perms: permissionsFor(role) };
+    req.user = { id: claims.sub, email: claims.email ?? "", perms: permissionsFor(role), token };
     next();
   } catch (err) {
     console.warn("[auth] rejected token:", (err as Error).message);
