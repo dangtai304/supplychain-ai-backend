@@ -2,7 +2,8 @@
 
 Express + TypeScript API for the SupplyChain AI control tower. Serves dashboard data, persists exception approvals and copilot chat in Postgres, and answers copilot questions with the Claude API.
 
-Frontend: [supplychain-ai-frontend](https://github.com/dangtai304/supplychain-ai-frontend). Hosted on Render (web service + Postgres).
+**Live API:** https://supplychain-ai-backend-3884.onrender.com/api/health  
+Frontend: [supplychain-ai-frontend](https://github.com/dangtai304/supplychain-ai-frontend) at https://supplychain-ai-frontend.vercel.app. Hosted on Render (Singapore), auto-deploys on push to `main`.
 
 ## Endpoints
 
