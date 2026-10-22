@@ -7,12 +7,15 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "users": "node --env-file-if-exists=.env --import tsx scripts/users.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
+    "@supabase/supabase-js": "^2.118.0",
     "cors": "^2.8.6",
     "express": "^5.3.0",
+    "jose": "^6.2.13",
     "pg": "^8.23.1"
   },
   "devDependencies": {
